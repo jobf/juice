@@ -1,0 +1,22 @@
+{
+	"name": "ob.juice",
+	"url": "https://github.com/jobf/ob.juice/",
+	"license": "MIT",
+	"tags": [
+		"tone",
+		"audio",
+		"synthesis",
+		"lime"
+	],
+	"description": "Make sound with lime.",
+	"version": "0.0.1",
+	"releasenote": "not released",
+	"contributors": [
+		"jobf"
+	],
+	"classPath": "src",
+	"dependencies": {
+		"lime": "",
+		"format": ""
+	}
+}

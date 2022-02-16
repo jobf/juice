@@ -1,0 +1,5 @@
+-cp src
+-lib format
+-lib lime
+--js bin/main.js
+# --cpp bin/cpp
