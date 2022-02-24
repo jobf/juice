@@ -1,5 +1,8 @@
 -cp src
 -lib format
 -lib lime
---js bin/main.js
+--dce full
+# --js bin/main.js
 # --cpp bin/cpp
+--python bin/main.py
+--main Main
