@@ -59,7 +59,7 @@ class StreamBuffer {
 	}
 
 	function traceAlErrors(debug:String = "") {
-		#if noaltrace
+		#if !noaltrace
 		return;
 		#end
 		var alErrorString = AL.getErrorString();
@@ -111,22 +111,29 @@ class StreamBuffer {
 		AL.sourceQueueBuffer(source, buffer);
 		traceAlErrors("tried to queue buffer");
 	}
+
+	public inline function getCurrentTime():Float {
+		var soundFileTime:Int = waveData.totalSamplesDelivered;
+		var alSamplesOffset = AL.getSourcei(source, AL.SAMPLE_OFFSET);
+		return (soundFileTime + alSamplesOffset) / config.sampleRate;
+	}
 }
 
 class WaveData {
-	var position:Int = 0;
+	var position:Int;
+	var wave:WAVE;
 
 	public var format(default, null):Int;
-
-	var wave:WAVE;
+	public var totalSamplesDelivered(default, null):Int;
 
 	public function new(filePath:String) {
 		position = 0;
+		totalSamplesDelivered = 0;
 		var input = File.read(filePath);
 		var reader = new Reader(input);
 		wave = reader.read();
 		format = wave.header.channels == 1 ? determineMonoFormat() : determineStereoFormat();
-		trace('wave format is ${StringTools.hex(format)}');
+		// trace('wave format is ${StringTools.hex(format)}');
 	}
 
 	public function getNextSamples(numSamples:Int):Bytes {
@@ -140,6 +147,7 @@ class WaveData {
 				// trace('reset position');
 			}
 		}
+		totalSamplesDelivered += numSamples;
 		return sampleData;
 	}
 
