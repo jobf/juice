@@ -20,6 +20,7 @@ class StreamConfig {
 
 class StreamBuffer {
 	static var sizeOfShort:Int = 8;
+
 	var waveData:WaveData;
 	var buffers:Array<ALSource>;
 	var frameSize:Int;
@@ -47,23 +48,10 @@ class StreamBuffer {
 		AL.sourcei(source, AL.BUFFER, 0);
 
 		traceAlErrors();
+		// trace('setting up ${buffers.length} buffers');
 
-		trace('setting up ${buffers.length} buffers');
-
-		var offset = 0;
-		for (i in 0...buffers.length) {
-			// get data to give to buffer
-			frameBuffer = UInt8Array.fromBytes(waveData.getNextSamples(config.numSamplesInBuffer));
-
-			// feed the buffer
-			AL.bufferData(buffers[i], waveData.format, frameBuffer, config.numSamplesInBuffer, config.sampleRate);
-			offset += config.numSamplesInBuffer;
-
-			traceAlErrors("tried to feed buffer");
-
-			// queue the buffer
-			AL.sourceQueueBuffer(source, buffers[i]);
-			traceAlErrors("tried to queue buffer");
+		for (buffer in buffers) {
+			bufferNextSamples(buffer);
 		}
 
 		AL.sourcePlay(source);
@@ -87,14 +75,7 @@ class StreamBuffer {
 			// trace('numBuffersToUnqueue $numBuffersToUnqueue');
 			var finishedBuffers = AL.sourceUnqueueBuffers(source, numBuffersToUnqueue);
 			for (buffer in finishedBuffers) {
-				// get data to give to buffer
-				frameBuffer = UInt8Array.fromBytes(waveData.getNextSamples(config.numSamplesInBuffer));
-
-				// feed the buffer
-				AL.bufferData(buffer, waveData.format, frameBuffer, config.numSamplesInBuffer, config.sampleRate);
-
-				// queue the buffer
-				AL.sourceQueueBuffer(source, buffer);
+				bufferNextSamples(buffer);
 			}
 		}
 
@@ -118,7 +99,18 @@ class StreamBuffer {
 		}
 	}
 
+	function bufferNextSamples(buffer:ALSource) {
+		// get data to give to buffer
+		frameBuffer = UInt8Array.fromBytes(waveData.getNextSamples(config.numSamplesInBuffer));
 
+		// feed the buffer
+		AL.bufferData(buffer, waveData.format, frameBuffer, config.numSamplesInBuffer, config.sampleRate);
+		traceAlErrors("tried to feed buffer");
+
+		// queue the buffer
+		AL.sourceQueueBuffer(source, buffer);
+		traceAlErrors("tried to queue buffer");
+	}
 }
 
 class WaveData {
@@ -143,7 +135,7 @@ class WaveData {
 		for (i in 0...numSamples) {
 			sampleData.set(i, wave.data.get(position));
 			position++;
-			if(position >= wave.data.length){
+			if (position >= wave.data.length) {
 				position = 0;
 				// trace('reset position');
 			}
@@ -165,4 +157,3 @@ class WaveData {
 		};
 	}
 }
-
