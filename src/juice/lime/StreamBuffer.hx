@@ -1,41 +1,41 @@
-package ob.juice;
+package juice.lime;
 
-import format.wav.Data;
-import sys.io.File;
-import format.wav.Reader;
-import lime.utils.UInt8Array;
-import lime.utils.ArrayBufferView;
-import lime.media.openal.AL;
 import haxe.io.Bytes;
+import lime.media.openal.AL;
+import lime.media.openal.ALBuffer;
 import lime.media.openal.ALSource;
+import lime.utils.ArrayBufferView;
+import lime.utils.Int32Array;
+import juice.core.SampleSource;
 
 @:structInit
 class StreamConfig {
-	public var numSamplesInBuffer:Int = 8192;
-	public var numBuffers:Int = 2;
-	public var numChannels:Int = 1;
-	public var sampleRate:Int = 44100;
-	public var filePath:String;
+	public var numSamplesInBuffer:Int = 4096 * 2;
+	public var numBuffers:Int = 4;
 }
 
 class StreamBuffer {
-	static var sizeOfShort:Int = 8;
-
-	var waveData:WaveData;
+	var samples:SampleSource;
 	var buffers:Array<ALSource>;
-	var frameSize:Int;
-	var frameBuffer:ArrayBufferView;
+	var data:Bytes;
+	var bufferView:ArrayBufferView;
+	var bufferViewSize:Int;
 	var currentBufferIndex:Int;
 	var config:StreamConfig;
 	var source:ALSource;
+	var format:Int;
 
-	public function new(config:StreamConfig) {
+	public function new(config:StreamConfig, samples:SampleSource) {
 		this.config = config;
-		waveData = new WaveData(config.filePath);
+		this.samples = samples;
+		format = samples.numChannels == 1 ? determineMonoFormat(samples.bitsPerSample) : determineStereoFormat(samples.bitsPerSample);
 		source = AL.createSource();
 		buffers = AL.genBuffers(config.numBuffers);
-		frameSize = config.numSamplesInBuffer * config.numChannels * sizeOfShort;
-		frameBuffer = new UInt8Array(frameSize);
+
+		data = Bytes.alloc(config.numSamplesInBuffer << 1);
+		bufferView = new Int32Array(data);
+		var isWaveFile = true;
+		bufferViewSize = config.numSamplesInBuffer * samples.bytesPerSample;
 	}
 
 	public function start() {
@@ -65,6 +65,20 @@ class StreamBuffer {
 		var alErrorString = AL.getErrorString();
 		var errorState = alErrorString.length == 0 ? "OK" : "ERROR";
 		trace('$debug\nAL $errorState $alErrorString');
+	}
+
+	inline function determineMonoFormat(bitsPerSample:Int):Int {
+		return switch bitsPerSample {
+			case 8: AL.FORMAT_MONO8;
+			case _: AL.FORMAT_MONO16;
+		};
+	}
+
+	inline function determineStereoFormat(bitsPerSample:Int):Int {
+		return switch bitsPerSample {
+			case 8: AL.FORMAT_STEREO8;
+			case _: AL.FORMAT_STEREO16;
+		};
 	}
 
 	public function update() {
@@ -99,12 +113,26 @@ class StreamBuffer {
 		}
 	}
 
-	function bufferNextSamples(buffer:ALSource) {
+	function bufferNextSamples(buffer:ALBuffer) {
+		
 		// get data to give to buffer
-		frameBuffer = UInt8Array.fromBytes(waveData.getNextSamples(config.numSamplesInBuffer));
+		samples.bufferNextSamples(data, config.numSamplesInBuffer);
+		
+		/*
+			notes regarding data we pass to AL.bufferData data:ArrayBufferView...
+			
+			8-bit PCM data is expressed as an unsigned value over the range 0 to 255,
+			128 being an audio output level of zero.
+			
+			16-bit PCM data is expressed as a signed value over the range -32768 to 32767,
+			0 being an audio output level of zero.
+			
+			Stereo data is expressed in interleaved format,
+			left channel first.
+		*/
 
 		// feed the buffer
-		AL.bufferData(buffer, waveData.format, frameBuffer, config.numSamplesInBuffer, config.sampleRate);
+		AL.bufferData(buffer, format, bufferView, bufferViewSize, samples.sampleRate);
 		traceAlErrors("tried to feed buffer");
 
 		// queue the buffer
@@ -113,55 +141,9 @@ class StreamBuffer {
 	}
 
 	public inline function getCurrentTime():Float {
-		var soundFileTime:Int = waveData.totalSamplesDelivered;
+		var soundFileTime:Int = samples.totalSamplesDelivered;
 		var alSamplesOffset = AL.getSourcei(source, AL.SAMPLE_OFFSET);
-		return (soundFileTime + alSamplesOffset) / config.sampleRate;
-	}
-}
-
-class WaveData {
-	var position:Int;
-	var wave:WAVE;
-
-	public var format(default, null):Int;
-	public var totalSamplesDelivered(default, null):Int;
-
-	public function new(filePath:String) {
-		position = 0;
-		totalSamplesDelivered = 0;
-		var input = File.read(filePath);
-		var reader = new Reader(input);
-		wave = reader.read();
-		format = wave.header.channels == 1 ? determineMonoFormat() : determineStereoFormat();
-		// trace('wave format is ${StringTools.hex(format)}');
+		return (soundFileTime + alSamplesOffset) / samples.sampleRate;
 	}
 
-	public function getNextSamples(numSamples:Int):Bytes {
-		var sampleData = Bytes.alloc(numSamples);
-		// trace('limit ${wave.data.length} : get $numSamples from $position');
-		for (i in 0...numSamples) {
-			sampleData.set(i, wave.data.get(position));
-			position++;
-			if (position >= wave.data.length) {
-				position = 0;
-				// trace('reset position');
-			}
-		}
-		totalSamplesDelivered += numSamples;
-		return sampleData;
-	}
-
-	inline function determineMonoFormat():Int {
-		return switch wave.header.bitsPerSample {
-			case 8: AL.FORMAT_MONO8;
-			case _: AL.FORMAT_MONO16;
-		};
-	}
-
-	inline function determineStereoFormat():Int {
-		return switch wave.header.bitsPerSample {
-			case 8: AL.FORMAT_STEREO8;
-			case _: AL.FORMAT_STEREO16;
-		};
-	}
 }
