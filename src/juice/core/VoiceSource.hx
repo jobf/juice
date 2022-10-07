@@ -1,8 +1,5 @@
 package juice.core;
 
-import lime.utils.ArrayBufferView;
-import lime.utils.Int16Array;
-import juice.dsp.Oscillator;
 import juice.dsp.Voice;
 import juice.core.SampleSource;
 import haxe.io.Bytes;
@@ -17,11 +14,22 @@ class VoiceSource extends SampleSource {
 		voice = new Voice(220.0, 0.75, config.sampleRate, SINE);
 	}
 
-	 public function bufferNextSamples(buffer:Bytes, numSamples:Int):Void{
+	public function setFrequency(frequencyHz:Float):Void {
+		voice.frequency = frequencyHz;
+	}
+
+	public function bufferNextSamples(buffer:Bytes, numSamples:Int):Void {
+		// here we fill the buffer of Bytes with juicy audio samples
 		for (n in 0...numSamples) {
-			var sample = voice.getSample(position);
+			// get next sample from voice, it will be between -1 and 1, a signed percentage perhaps
+			var sample:Float = voice.getSample(position);
+			// it is a stream of samples so update position
 			position++;
+
+			// convert float to int
 			var v = Std.int(sample * 0x7FFF);
+			
+			// buffer pair of bytes, compatible with 16 bit PCM format
 			buffer.set(n << 1, v);
 			buffer.set((n << 1) + 1, v >>> 8);
 		}
