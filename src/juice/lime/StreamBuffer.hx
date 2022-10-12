@@ -10,7 +10,7 @@ import juice.core.SampleSource;
 
 @:structInit
 class StreamConfig {
-	public var numSamplesInBuffer:Int = 4096 * 2;
+	public var numSamplesInBuffer:Int = 1024;
 	public var numBuffers:Int = 4;
 }
 
@@ -31,10 +31,9 @@ class StreamBuffer {
 		format = samples.numChannels == 1 ? determineMonoFormat(samples.bitsPerSample) : determineStereoFormat(samples.bitsPerSample);
 		source = AL.createSource();
 		buffers = AL.genBuffers(config.numBuffers);
-
+		
 		data = Bytes.alloc(config.numSamplesInBuffer << 1);
 		bufferView = new Int32Array(data);
-		var isWaveFile = true;
 		bufferViewSize = config.numSamplesInBuffer * samples.bytesPerSample;
 	}
 

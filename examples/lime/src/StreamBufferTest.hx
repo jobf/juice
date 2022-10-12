@@ -20,7 +20,7 @@ class StreamBufferTest extends Application {
 
 		stream = new StreamBuffer({
 			numBuffers: 4,
-			numSamplesInBuffer: 4096,
+			numSamplesInBuffer: 1024,
 		}, sampleSource);
 
 		stream.start();
