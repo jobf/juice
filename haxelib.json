@@ -1,0 +1,20 @@
+{
+	"name": "juice",
+	"url": "https://github.com/jobf/juice",
+	"license": "MIT",
+	"tags": [
+		"audio",
+		"webaudio",
+		"stream",
+		"lime"
+	],
+	"description": "Streaming audio API.",
+	"version": "0.5.0",
+	"classPath": "src/",
+	"releasenote": "Unreleased.",
+	"contributors": [
+		"jobf"
+	],
+	"dependencies": {
+	}
+}
