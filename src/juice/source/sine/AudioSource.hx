@@ -10,7 +10,7 @@ class AudioSource implements IAudioSource {
 	var sampleRate:Float;
 	var leftFreq:Float = 440;
 	var rightFreq:Float = 220;
-	var amplitude = 1.0;
+	var amplitude = 0.5;
 	var leftPhase:Float = 0;
 	var rightPhase:Float = 0;
 	var sampleIndex:Int = 0;

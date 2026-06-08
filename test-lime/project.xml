@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<project>
+	
+	<meta title="sine" package="ibxm-hx" version="0.1.0" company="v-v" />
+	<meta title="sine - click to play" if="html5"/>
+	
+	<window width="800" height="600" fps="61" allowHighDPI="false" vsync="true" />
+	<window if="html5||android" width="0" height="0" />
+	
+	<app main="Main" path="bin" />
+
+	<haxelib name="lime" />	
+	<haxelib name="format" />
+
+	<!-- https://github.com/jobf/juice -->
+	<haxelib name="juice" />
+
+	<!-- https://github.com/jobf/ibxm-hx -->
+	<haxelib name="ibxm-hx" />
+
+	<haxeflag name="-dce" value="full" />
+	
+</project>
