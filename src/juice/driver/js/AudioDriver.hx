@@ -1,44 +1,40 @@
 package juice.driver.js;
 
 import haxe.io.Float32Array;
-import juice.IAudioSource;
-import juice.IAudioDriver;
+import juice.AudioDriverContract;
+import juice.AudioDriverContract;
 import juice.driver.js.AudioWorkletContext;
 import js.html.Blob;
 import js.html.URL;
 
 @:publicFields
-class AudioDriver implements IAudioDriver {
+class AudioDriver extends AudioDriverContract {
 	/** Creates the best available driver: AudioWorklet where supported, falling back to the legacy ScriptProcessor driver otherwise. **/
-	static function create():IAudioDriver {
-		
+	static function create(bufferSize:Int=1024):AudioDriverContract {
+
 		if(!isWorkletSupported()){
 			// use AudioProcessingEvent for streaming audio data, does not require https at all
-			return new AudioDriverLegacy();
+			return new AudioDriverLegacy(bufferSize);
 		}
-		
+	
 		// use AudioWorklet for streaming audio data, requires https when not running locally
-		return new AudioDriver();
+		return new AudioDriver(bufferSize);
 	}
 
 	private static function isWorkletSupported():Bool {
 		return Reflect.hasField(js.Browser.window, "AudioWorkletNode");
 	}
 
-	private var audioSource:IAudioSource;
 	private var audioContext:AudioWorkletContext;
 	private var node:AudioWorkletNode;
 
-	private var bufferSize:Int = 1024;
 	private var isInitialized:Bool = false;
 	private var moduleReady:js.lib.Promise<Void>;
 	private var blobUrl:String;
 
-	var isPlaying:Bool = false;
-	var samplesProcessed:Int = 0;
-
-	function new():Void {
+	function new(bufferSize:Int=1024):Void {
 		audioContext = new AudioWorkletContext();
+		super(Std.int(audioContext.sampleRate), bufferSize);
 
 		var blob = new Blob([Processor.code], {type: "application/javascript"});
 		blobUrl = URL.createObjectURL(blob);
@@ -84,7 +80,7 @@ class AudioDriver implements IAudioDriver {
 	function generateAndSendBuffer() {
 		var buffL = new Float32Array(bufferSize);
 		var buffR = new Float32Array(bufferSize);
-		audioSource.getAudio(buffL, buffR, bufferSize);
+		source.getAudio(buffL, buffR, bufferSize);
 		streamAudioData(buffL, buffR);
 	}
 
@@ -99,10 +95,6 @@ class AudioDriver implements IAudioDriver {
 			leftBuffer: buffL,
 			rightBuffer: buffR,
 		});
-	}
-
-	function getSamplingRate():Float {
-		return audioContext.sampleRate;
 	}
 
 	/* begin playback, starts requesting audio data */
@@ -164,16 +156,8 @@ class AudioDriver implements IAudioDriver {
 		trace('Audio playback resumed');
 	}
 
-	function setAudioSource(audioSource:IAudioSource):Void {
-		this.audioSource = audioSource;
+	override function setSampleSource(source:ISampleSource):Void {
+		super.setSampleSource(source);
 		isInitialized = true;
-	}
-
-	function getBufferSize():Int {
-		return bufferSize;
-	}
-
-	function getSamplesProcessed():Int {
-		return samplesProcessed;
 	}
 }

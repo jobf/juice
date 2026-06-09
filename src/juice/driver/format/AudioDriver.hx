@@ -1,44 +1,29 @@
 package juice.driver.format;
 
-import juice.IAudioDriver;
-import juice.IAudioSource;
+import juice.AudioDriverContract;
+import juice.AudioDriverContract;
 import haxe.io.Float32Array;
 import haxe.io.BytesOutput;
 import format.wav.Data;
 import format.wav.Writer;
 
-class AudioDriver implements IAudioDriver {
-	public var isPlaying:Bool = false;
-	public var samplesProcessed:Int = 0;
-
-	final sampleRate:Int;
+class AudioDriver extends AudioDriverContract {
 	final totalSamples:Int;
 
 	#if sys
 	final outputPath:String;
 
-	public function new(sampleRate:Int, outputPath:String, totalSamples:Int) {
-		this.sampleRate = sampleRate;
-		this.outputPath = outputPath;
+	public function new(totalSamples:Int, outputPath:String, samplingRate:Int=48000, bufferSize:Int=1024) {
+		super(samplingRate, bufferSize);
 		this.totalSamples = totalSamples;
+		this.outputPath = outputPath;
 	}
 	#else
-	public function new(sampleRate:Int, totalSamples:Int) {
-		this.sampleRate = sampleRate;
+	public function new(totalSamples:Int, samplingRate:Int=48000, bufferSize:Int=1024) {
+		super(samplingRate, bufferSize);
 		this.totalSamples = totalSamples;
 	}
 	#end
-
-	var source:IAudioSource;
-
-	public function setAudioSource(s:IAudioSource):Void
-		source = s;
-
-	public function getSamplingRate():Float
-		return sampleRate;
-
-	public function getSamplesProcessed():Int
-		return samplesProcessed;
 
 	public function stop():Void {}
 
@@ -57,7 +42,7 @@ class AudioDriver implements IAudioDriver {
 		#if js
 		/*
 			web audio uses separate left and right 
-			so excercise ReplaySource.getAudio
+			so use ReplaySource.getAudio
 		 */
 		var left = new Float32Array(totalSamples);
 		var right = new Float32Array(totalSamples);
@@ -68,7 +53,7 @@ class AudioDriver implements IAudioDriver {
 		}
 		#else
 		/*
-			excercise ReplaySource.getAudioInterleaved
+			use ReplaySource.getAudioInterleaved
 		 */
 		var interleaved = new Float32Array(totalSamples * 2);
 		source.getAudioInterleaved(interleaved, totalSamples);
@@ -82,8 +67,8 @@ class AudioDriver implements IAudioDriver {
 			header: {
 				format: WF_PCM,
 				channels: channels,
-				samplingRate: sampleRate,
-				byteRate: sampleRate * bytesPerFrame,
+				samplingRate: samplingRate,
+				byteRate: samplingRate * bytesPerFrame,
 				blockAlign: bytesPerFrame,
 				bitsPerSample: 32
 			},

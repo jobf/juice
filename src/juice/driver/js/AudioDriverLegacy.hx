@@ -3,36 +3,32 @@ package juice.driver.js;
 import js.html.audio.AudioContext;
 import js.html.audio.AudioProcessingEvent;
 import js.html.audio.ScriptProcessorNode;
-import juice.IAudioSource;
+import juice.AudioDriverContract;
 
 /*
-	This IAudioDriver implementation can be used when https is not available.
+	This AudioDriver implementation can be used when https is not available.
 */
 @:publicFields
-class AudioDriverLegacy implements IAudioDriver {
+class AudioDriverLegacy extends AudioDriverContract {
 	private var audioContext:AudioContext;
 	private var scriptProcessor:ScriptProcessorNode;
-	private var audioSource:IAudioSource;
 	private var onaudioprocess:AudioProcessingEvent->Void;
-	
-	private var bufferSize:Int = 0;
 
-	var isPlaying:Bool = false;
-	var samplesProcessed:Int = 0;
-
-	function new():Void {
+	function new(bufferSize:Int=1024){
 		audioContext = new AudioContext();
+		super(Std.int(audioContext.sampleRate), bufferSize);
 		scriptProcessor = audioContext.createScriptProcessor(0, 0, 2);
 		trace('info: using legacy web player');
 	}
 
-	function setAudioSource(audioSource:IAudioSource) {
+	override function setSampleSource(source:ISampleSource) {
+		super.setSampleSource(source);
 		onaudioprocess = (event:AudioProcessingEvent) -> {
 			if (isPlaying) {
 				samplesProcessed += event.outputBuffer.length;
 				var leftBuf:haxe.io.Float32Array = cast event.outputBuffer.getChannelData(0);
 				var rightBuf:haxe.io.Float32Array = cast event.outputBuffer.getChannelData(1);
-				audioSource.getAudio(leftBuf, rightBuf, event.outputBuffer.length);
+				source.getAudio(leftBuf, rightBuf, event.outputBuffer.length);
 			} else {
 				// Fill with silence when stopped
 				var leftBuf:haxe.io.Float32Array = cast event.outputBuffer.getChannelData(0);
@@ -43,10 +39,6 @@ class AudioDriverLegacy implements IAudioDriver {
 				}
 			}
 		}
-	}
-
-	function getSamplingRate():Float {
-		return audioContext.sampleRate;
 	}
 
 	function play():Void {
@@ -70,13 +62,5 @@ class AudioDriverLegacy implements IAudioDriver {
 
 	function resume() {
 		isPlaying = true;
-	}
-
-	function getBufferSize():Int {
-		return bufferSize;
-	}
-
-	function getSamplesProcessed():Int {
-		return samplesProcessed;
 	}
 }

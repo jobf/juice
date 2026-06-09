@@ -4,7 +4,7 @@ import juice.driver.js.AudioDriver;
 import juice.driver.lime.AudioDriver;
 #end
 
-import juice.source.sine.AudioSource;
+import juice.source.sine.SineSource;
 
 import lime.app.Application;
 
@@ -21,8 +21,13 @@ class Main extends Application {
 	}
 
 	function start() {
-		var driver = new AudioDriver();
-		driver.setAudioSource(new AudioSource(driver.getSamplingRate()));
+		var bufferSize = 1024;
+		#if js
+		var driver = AudioDriver.create(bufferSize);
+		#else
+		var driver = new AudioDriver(bufferSize);
+		#end
+		driver.setSampleSource(new SineSource());
 		driver.play();
 	}
 }

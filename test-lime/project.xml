@@ -15,9 +15,6 @@
 	<!-- https://github.com/jobf/juice -->
 	<haxelib name="juice" />
 
-	<!-- https://github.com/jobf/ibxm-hx -->
-	<haxelib name="ibxm-hx" />
-
 	<haxeflag name="-dce" value="full" />
-	
+
 </project>

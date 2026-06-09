@@ -4,13 +4,13 @@ Squeeze some sounds out of haxe~~lime~~
 
 ## Audio streaming API
 
-### IAudioSource
+### ISampleSource
 
-Responsible for producing the individual audio samples that are played through IAudioDriver.
+Responsible for producing the individual audio samples that are played through AudioDriver.
 
-### IAudioDriver
+### AudioDriver
 
-Responsible for feeding the IAudioSource samples into an audio stream.
+Responsible for feeding the ISampleSource samples into an audio stream.
 
 #### driver.lime
 
@@ -40,4 +40,3 @@ lime test html5
 - proper readme
 - pure tests (e.g. test driver.format)
 - comments
-- decide where ibxm source should live
