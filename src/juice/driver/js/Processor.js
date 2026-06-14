@@ -1,33 +1,36 @@
 class AudioStreamProcessor extends AudioWorkletProcessor {
-	constructor() {
+	constructor(options) {
 		super();
-		
+
 		// queues for left and right channels
 		this.leftBufferQueue = [];
 		this.rightBufferQueue = [];
-		
+
 		// currently being processed
 		this.currentLeftBuffer = null;
 		this.currentRightBuffer = null;
-		
+
 		this.leftBufferIndex = 0;
 		this.rightBufferIndex = 0;
 
+		this.bufferSize = (options.processorOptions && options.processorOptions.bufferSize) || 1024;
+		this.streamConsumed = 0;
 		this.samplesProcessed = 0;
 		this.silentSamples = 0;
 		this.isPlaying = false;
-		
+
 		// route messages sent from main thread
 		this.port.onmessage = (event) => {
-			if (event.data.type === 'audioData') {
-				// queue audio samples
+			if (event.data.type === 'stream.buffer.data') {
+				// queue audio stream
 				this.leftBufferQueue.push(event.data.leftBuffer);
 				this.rightBufferQueue.push(event.data.rightBuffer);
-			} else if (event.data.type === 'start') {
+			} else if (event.data.type === 'stream.play') {
 				this.isPlaying = true;
-				this.port.postMessage({ type: 'dataRequest' });
-			} else if (event.data.type === 'stop') {
+				this.port.postMessage({ type: 'stream.buffer.request' });
+			} else if (event.data.type === 'stream.stop') {
 				this.isPlaying = false;
+				this.streamConsumed = 0;
 				// reset buffers
 				this.leftBufferQueue = [];
 				this.rightBufferQueue = [];
@@ -35,14 +38,12 @@ class AudioStreamProcessor extends AudioWorkletProcessor {
 				this.currentRightBuffer = null;
 				this.leftBufferIndex = 0;
 				this.rightBufferIndex = 0;
-			} else if (event.data.type === 'pause') {
+			} else if (event.data.type === 'stream.pause') {
 				this.isPlaying = false;
 				// keep buffers for resume
-			} else if (event.data.type === 'resume') {
+			} else if (event.data.type === 'stream.resume') {
 				this.isPlaying = true;
-				if (this.leftBufferQueue.length <= 2) {
-					this.port.postMessage({ type: 'dataRequest' });
-				}
+				this.port.postMessage({ type: 'stream.buffer.request' });
 			}
 		};
 	}
@@ -56,15 +57,21 @@ class AudioStreamProcessor extends AudioWorkletProcessor {
 			if (this.isPlaying) {
 				const leftSample = this.getNextLeftSample();
 				const rightSample = this.getNextRightSample();
-				
+
 				leftChannel[i] = leftSample;
 				rightChannel[i] = rightSample;
-				
-				// count silent samples (when both channels are silent)
+
+				// count silent stream (when both channels are silent)
 				if (leftSample === 0 && rightSample === 0) {
 					this.silentSamples++;
 				} else {
 					this.silentSamples = 0;
+				}
+
+				this.streamConsumed++;
+				if (this.streamConsumed >= this.bufferSize) {
+					this.streamConsumed = 0;
+					this.port.postMessage({ type: 'stream.buffer.request' });
 				}
 			} else {
 				// output silence because !isPlaying
@@ -74,25 +81,16 @@ class AudioStreamProcessor extends AudioWorkletProcessor {
 			this.samplesProcessed++;
 		}
 
-		// request data when playing and buffer is getting low OR when we are producing silence
-		if (this.isPlaying && (this.leftBufferQueue.length <= 2 || this.silentSamples > 1024)) {
-			this.port.postMessage({ type: 'dataRequest' });
-			// reset count
-			if (this.silentSamples > 1024) {
-				this.silentSamples = 0;
-			}
-		}
-
-		// log status every 8192 samples
-		if (this.samplesProcessed % 8192 === 0) {
-			this.port.postMessage({
-				type: 'bufferStatus',
-				queueLength: this.leftBufferQueue.length,
-				samplesProcessed: this.samplesProcessed,
-				silentSamples: this.silentSamples,
-				isPlaying: this.isPlaying
-			});
-		}
+		// log status every 8192 stream
+		// if (this.samplesProcessed % 8192 === 0) {
+		// 	this.port.postMessage({
+		// 		type: 'bufferStatus',
+		// 		queueLength: this.leftBufferQueue.length,
+		// 		samplesProcessed: this.samplesProcessed,
+		// 		silentSamples: this.silentSamples,
+		// 		isPlaying: this.isPlaying
+		// 	});
+		// }
 
 		return true;
 	}

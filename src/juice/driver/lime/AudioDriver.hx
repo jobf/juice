@@ -1,18 +1,18 @@
 package juice.driver.lime;
 
-import lime.media.openal.ALC;
-import lime.utils.ArrayBufferView;
-import lime.utils.ArrayBuffer;
-import lime.media.openal.AL;
-import lime.media.openal.ALBuffer;
-import lime.media.openal.ALSource;
 import haxe.io.Float32Array;
 import haxe.Timer;
+import lime.media.openal.AL;
+import lime.media.openal.ALBuffer;
+import lime.media.openal.ALC;
+import lime.media.openal.ALSource;
+import lime.utils.ArrayBuffer;
+import lime.utils.ArrayBufferView;
 
-import juice.AudioDriverContract;
+import juice.API;
 
 @:publicFields
-class AudioDriver extends AudioDriverContract {
+class AudioDriver extends AudioDriverBase {
 	private var buffers:Array<ALBuffer>;
 	private var alBufferSize:Int;
 	private var alSource:ALSource;
@@ -23,7 +23,7 @@ class AudioDriver extends AudioDriverContract {
 	private var numChannels = 2;
 	private var bufferCount:Int;
 	private var isInitialized:Bool = false;
-	private var interleavedBuf:Float32Array;
+	private var interleavedView:lime.utils.Float32Array;
 
 	function new(bufferSize:Int=1024){
 		var device = ALC.getContextsDevice(ALC.getCurrentContext());
@@ -32,7 +32,7 @@ class AudioDriver extends AudioDriverContract {
 	}
 
 	function init():Void {
-		bufferCount = Std.int(Math.max(2, 2048 / bufferSize));
+		bufferCount = Std.int(Math.max(2, 4096 / bufferSize));
 		buffers = AL.genBuffers(bufferCount);
 		alSource = AL.createSource();
 		
@@ -50,9 +50,8 @@ class AudioDriver extends AudioDriverContract {
 		
 		var frameCount = bufferSize * numChannels;
 		alBufferSize = frameCount * 4;
-		interleavedBuf = new Float32Array(alBufferSize);
-		var interleavedView:lime.utils.Float32Array = lime.utils.Float32Array.fromBytes(interleavedBuf.view.buffer);
-		var time = 1000 / 144;
+		interleavedView = lime.utils.Float32Array.fromBytes(buffer.view.buffer);
+		var time = 1000 * bufferSize / samplingRate * 0.8;
 		timer = new Timer(time);
 
 		static var AL_FORMAT_STEREO_FLOAT32 = 0x10011;
@@ -71,7 +70,7 @@ class AudioDriver extends AudioDriverContract {
 				var finishedBuffers = AL.sourceUnqueueBuffers(alSource, numBuffersFinished);
 				for (buffer in finishedBuffers) {
 					if (isInitialized) {
-						source.getAudioInterleaved(interleavedBuf, bufferSize);
+						renderBuffer();
 					}
 					AL.bufferData(buffer, AL_FORMAT_STEREO_FLOAT32, interleavedView, alBufferSize, samplingRate);
 					AL.sourceQueueBuffer(alSource, buffer);
@@ -79,39 +78,38 @@ class AudioDriver extends AudioDriverContract {
 				}
 			}
 
-			// keep source playing in case it stopped (e.g. because window focus was lost and source queue was not replenished)
+			// keep stream playing in case it stopped (e.g. because window focus was lost and stream queue was not replenished)
 			if (isPlaying && alSourceState == AL.STOPPED) {
 				AL.sourcePlay(alSource);
 			}
 		}
 	}
 
-	override function setSampleSource(source:ISampleSource) {
-		super.setSampleSource(source);
+	override function setSampleStream(stream:ISampleStream) {
+		super.setSampleStream(stream);
 		init();
 		isInitialized = true;
 	}
 
 	function play():Void {
+		samplesProcessed = 0;
 		AL.sourcePlay(alSource);
 		isPlaying = true;
+		isPaused = false;
 	}
 
 	function stop():Void {
 		AL.sourceStop(alSource);
-		samplesProcessed = 0;
 		isPlaying = false;
 	}
 
 	function pause():Void {
-		if (!isPlaying) return;
-		isPlaying = false;
 		AL.sourcePause(alSource);
+		isPaused = true;
 	}
 
 	function resume():Void {
-		if(isPlaying) return;
 		AL.sourcePlay(alSource);
-		isPlaying = true;
+		isPaused = true;
 	}
 }

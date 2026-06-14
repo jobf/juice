@@ -1,12 +1,12 @@
-package juice.source.sine;
+package juice.stream.sine;
 
 import haxe.io.Float32Array;
-import juice.AudioDriverContract;
+import juice.API;
 
 /**
  * For testing with generated sine wave.
  */
-class SineSource implements ISampleSource {
+class SineStream implements ISampleStream {
 	var sampleRate:Float;
 	var leftFreq:Float = 440;
 	var rightFreq:Float = 220;

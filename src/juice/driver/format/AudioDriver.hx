@@ -1,13 +1,11 @@
 package juice.driver.format;
 
-import juice.AudioDriverContract;
-import juice.AudioDriverContract;
-import haxe.io.Float32Array;
-import haxe.io.BytesOutput;
 import format.wav.Data;
 import format.wav.Writer;
+import haxe.io.BytesOutput;
+import juice.API;
 
-class AudioDriver extends AudioDriverContract {
+class AudioDriver extends AudioDriverBase {
 	final totalSamples:Int;
 
 	#if sys
@@ -39,28 +37,18 @@ class AudioDriver extends AudioDriverContract {
 		final bytesPerFrame = channels * 4;
 		var pcmOut = new BytesOutput();
 		pcmOut.bigEndian = false;
-		#if js
-		/*
-			web audio uses separate left and right 
-			so use ReplaySource.getAudio
-		 */
-		var left = new Float32Array(totalSamples);
-		var right = new Float32Array(totalSamples);
-		source.getAudio(left, right, totalSamples);
-		for (i in 0...totalSamples) {
-			pcmOut.writeInt32(Std.int(left[i] * 0x7FFFFFFF));
-			pcmOut.writeInt32(Std.int(right[i] * 0x7FFFFFFF));
+
+		var remaining = totalSamples;
+		while (remaining > 0) {
+			var chunk = Std.int(Math.min(remaining, bufferSize));
+			renderBuffer();
+			for (i in 0...chunk) {
+				pcmOut.writeInt32(Std.int(buffer[i * 2] * 0x7FFFFFFF));
+				pcmOut.writeInt32(Std.int(buffer[i * 2 + 1] * 0x7FFFFFFF));
+			}
+			remaining -= chunk;
+			samplesProcessed += chunk;
 		}
-		#else
-		/*
-			use ReplaySource.getAudioInterleaved
-		 */
-		var interleaved = new Float32Array(totalSamples * 2);
-		source.getAudioInterleaved(interleaved, totalSamples);
-		for (i in 0...totalSamples * 2) {
-			pcmOut.writeInt32(Std.int(interleaved[i] * 0x7FFFFFFF));
-		}
-		#end
 
 		var wavOut = new BytesOutput();
 		new Writer(wavOut).write({
@@ -91,7 +79,6 @@ class AudioDriver extends AudioDriverContract {
 		out.close();
 		#end
 
-		samplesProcessed = totalSamples;
 		isPlaying = false;
 	}
 }

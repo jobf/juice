@@ -3,13 +3,13 @@ package juice.driver.js;
 import js.html.audio.AudioContext;
 import js.html.audio.AudioProcessingEvent;
 import js.html.audio.ScriptProcessorNode;
-import juice.AudioDriverContract;
+import juice.API;
 
 /*
 	This AudioDriver implementation can be used when https is not available.
 */
 @:publicFields
-class AudioDriverLegacy extends AudioDriverContract {
+class AudioDriverLegacy extends AudioDriverBase {
 	private var audioContext:AudioContext;
 	private var scriptProcessor:ScriptProcessorNode;
 	private var onaudioprocess:AudioProcessingEvent->Void;
@@ -17,18 +17,22 @@ class AudioDriverLegacy extends AudioDriverContract {
 	function new(bufferSize:Int=1024){
 		audioContext = new AudioContext();
 		super(Std.int(audioContext.sampleRate), bufferSize);
-		scriptProcessor = audioContext.createScriptProcessor(0, 0, 2);
-		trace('info: using legacy web player');
+		scriptProcessor = audioContext.createScriptProcessor(bufferSize, 0, 2);
+		trace('info: using legacy audio driver!');
 	}
 
-	override function setSampleSource(source:ISampleSource) {
-		super.setSampleSource(source);
+	override function setSampleStream(stream:ISampleStream) {
+		super.setSampleStream(stream);
 		onaudioprocess = (event:AudioProcessingEvent) -> {
 			if (isPlaying) {
-				samplesProcessed += event.outputBuffer.length;
+				renderBuffer();
 				var leftBuf:haxe.io.Float32Array = cast event.outputBuffer.getChannelData(0);
 				var rightBuf:haxe.io.Float32Array = cast event.outputBuffer.getChannelData(1);
-				source.getAudio(leftBuf, rightBuf, event.outputBuffer.length);
+				for (i in 0...bufferSize) {
+					leftBuf[i] = buffer[i * 2];
+					rightBuf[i] = buffer[i * 2 + 1];
+				}
+				samplesProcessed += bufferSize;
 			} else {
 				// Fill with silence when stopped
 				var leftBuf:haxe.io.Float32Array = cast event.outputBuffer.getChannelData(0);
@@ -42,25 +46,32 @@ class AudioDriverLegacy extends AudioDriverContract {
 	}
 
 	function play():Void {
+		if (audioContext.state == SUSPENDED) {
+			audioContext.resume();
+		}
+
 		isPlaying = true;
+		isPaused = false;
 		samplesProcessed = 0;
 		scriptProcessor.onaudioprocess = onaudioprocess;
 		scriptProcessor.connect(audioContext.destination);
 	}
 
 	function stop():Void {
-		isPlaying = false;
 		if (scriptProcessor.onaudioprocess != null) {
 			scriptProcessor.disconnect(audioContext.destination);
 			scriptProcessor.onaudioprocess = null;
 		}
-	}
-
-	function pause() {
 		isPlaying = false;
 	}
 
+	function pause() {
+		isPaused = true;
+		audioContext.suspend();
+	}
+
 	function resume() {
-		isPlaying = true;
+		if (audioContext.state == SUSPENDED) audioContext.resume();
+		isPaused = false;
 	}
 }
