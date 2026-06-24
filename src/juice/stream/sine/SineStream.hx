@@ -7,55 +7,42 @@ import juice.API;
  * For testing with generated sine wave.
  */
 class SineStream implements ISampleStream {
-	var sampleRate:Float;
+	var sampleRate(default, null):Float;
 	var leftFreq:Float = 440;
 	var rightFreq:Float = 220;
 	var amplitude = 0.5;
-	var leftPhase:Float = 0;
-	var rightPhase:Float = 0;
+
+	/** Absolute position in the stream, so phase is computed fresh from this rather than accumulated - no drift across long playback or buffer boundaries. */
 	var sampleIndex:Int = 0;
 
-	public function new() {}
-
-	public function init(samplingRate:Int) {
-		sampleRate = samplingRate;
+	/** sampleRate here is only a placeholder for offline use - init() overwrites it with the real device rate for real time use */
+	public function new(sampleRate:Float = 48000) {
+		this.sampleRate = sampleRate;
 	}
 
-	var PI2 = 2.0 * Math.PI;
-
-	public function getAudio(leftBuf:Float32Array, rightBuf:Float32Array, numSamples:Int):Void {
-		var leftPhaseIncrement = (2 * Math.PI * leftFreq) / this.sampleRate;
-		var rightPhaseIncrement = (2 * Math.PI * rightFreq) / this.sampleRate;
-
-		for (i in 0...numSamples) {
-			leftBuf[i] = Math.sin(this.leftPhase) * amplitude;
-			rightBuf[i] = Math.sin(this.rightPhase) * amplitude;
-
-			this.leftPhase += leftPhaseIncrement;
-			this.rightPhase += rightPhaseIncrement;
-
-			if (this.leftPhase > PI2)
-				this.leftPhase -= PI2;
-			if (this.rightPhase > PI2)
-				this.rightPhase -= PI2;
-		}
+	public function init(deviceSampleRate:Int) {
+		sampleRate = deviceSampleRate;
 	}
 
-	public function getAudioInterleaved(output:Float32Array, numSamples:Int):Void {
-		var leftPhaseIncrement = (2 * Math.PI * leftFreq) / this.sampleRate;
-		var rightPhaseIncrement = (2 * Math.PI * rightFreq) / this.sampleRate;
+	static final PI2 = 2.0 * Math.PI;
 
+	public function getAudio(left:Float32Array, right:Float32Array):Void {
+		var numSamples = left.length;
 		for (i in 0...numSamples) {
-			output[i * 2] = Math.sin(this.leftPhase) * amplitude;
-			output[i * 2 + 1] = Math.sin(this.rightPhase) * amplitude;
-
-			this.leftPhase += leftPhaseIncrement;
-			this.rightPhase += rightPhaseIncrement;
-
-			if (this.leftPhase > PI2)
-				this.leftPhase -= PI2;
-			if (this.rightPhase > PI2)
-				this.rightPhase -= PI2;
+			var t = (sampleIndex + i) / sampleRate;
+			left[i] = Math.sin(PI2 * leftFreq * t) * amplitude;
+			right[i] = Math.sin(PI2 * rightFreq * t) * amplitude;
 		}
+		sampleIndex += numSamples;
+	}
+
+	public function getAudioInterleaved(output:Float32Array):Void {
+		var numSamples = output.length >> 1;
+		for (i in 0...numSamples) {
+			var t = (sampleIndex + i) / sampleRate;
+			output[i * 2] = Math.sin(PI2 * leftFreq * t) * amplitude;
+			output[i * 2 + 1] = Math.sin(PI2 * rightFreq * t) * amplitude;
+		}
+		sampleIndex += numSamples;
 	}
 }

@@ -24,9 +24,9 @@ class AudioDriver extends AudioDriverBase {
 		return Reflect.hasField(js.Browser.window, "AudioWorkletNode");
 	}
 
-	private var audioContext:AudioWorkletContext;
+	private final audioContext:AudioWorkletContext;
+	private final modulePromise:js.lib.Promise<Void>;
 	private var node:AudioWorkletNode;
-	private var modulePromise:js.lib.Promise<Void>;
 
 	function new(bufferSize:Int = 1024):Void {
 		audioContext = new AudioWorkletContext();
@@ -36,43 +36,38 @@ class AudioDriver extends AudioDriverBase {
 		var blobUrl = URL.createObjectURL(blob);
 
 		modulePromise = audioContext.audioWorklet.addModule(blobUrl);
-		modulePromise.catchError(error -> trace(error));
-		// modulePromise.finally(() -> URL.revokeObjectURL(blobUrl));
-	}
+		modulePromise.then(_ -> {
+			node = new AudioWorkletNode(audioContext, 'audio-stream-processor', {
+				// numberOfInputs: numberOfInputs,
+				numberOfOutputs: 1,
+				outputChannelCount: [2],
+				// parameterData: parameterData,
+				processorOptions: {bufferSize: bufferSize},
+				// channelCount: channelCount,
+				// channelCountMode: channelCountMode,
+				// channelInterpretation: channelInterpretation
+			});
 
-	function initAudioWorkletNode() {
-		if (node != null) return;
-
-		node = new AudioWorkletNode(audioContext, 'audio-stream-processor', {
-			// numberOfInputs: numberOfInputs,
-			numberOfOutputs: 1,
-			outputChannelCount: [2],
-			// parameterData: parameterData,
-			processorOptions: {bufferSize: bufferSize},
-			// channelCount: channelCount,
-			// channelCountMode: channelCountMode,
-			// channelInterpretation: channelInterpretation
-		});
-
-		// listen for messages from the processor (to tell us it's hungry)
-		node.port.onmessage = event -> {
-			if (event.data.type == 'stream.buffer.request') {
-				if (isPlaying) {
-					generateAndSendBuffer();
-					samplesProcessed += bufferSize;
+			// listen for messages from the processor (to tell us it's hungry)
+			node.port.onmessage = event -> {
+				if (event.data.type == 'stream.buffer.request') {
+					if (isPlaying) {
+						generateAndSendBuffer();
+						samplesProcessed += bufferSize;
+					}
 				}
+
+				// // debug (see Processor.js line 84)
+				// if (event.data.type == 'bufferStatus') {
+				// 	trace('bufferStatus queueLength: ${event.data.queueLength}, samplesProcessed: ${event.data.samplesProcessed}, silentSamples: ${event.data.silentSamples}');
+				// }
 			}
 
-			// // debug (see Processor.js line 84)
-			// if (event.data.type == 'bufferStatus') {
-			// 	trace('bufferStatus queueLength: ${event.data.queueLength}, samplesProcessed: ${event.data.samplesProcessed}, silentSamples: ${event.data.silentSamples}');
-			// }
-		}
+			// connect to output
+			node.connect(this.audioContext.destination);
 
-		// connect to output
-		node.connect(this.audioContext.destination);
-
-		trace('audio-stream-processor initialized');
+			trace('audio-stream-processor initialized');
+		}).catchError(error -> trace(error));
 	}
 
 	function generateAndSendBuffer() {
@@ -102,8 +97,6 @@ class AudioDriver extends AudioDriverBase {
 	/* begin stream, starts requesting audio data */
 	function play():Void {
 		modulePromise.then(_ -> {
-			if (node == null)
-				initAudioWorkletNode();
 			if (audioContext.state == SUSPENDED) {
 				audioContext.resume();
 			}

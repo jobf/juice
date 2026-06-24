@@ -11,14 +11,14 @@ class AudioDriver extends AudioDriverBase {
 	#if sys
 	final outputPath:String;
 
-	public function new(totalSamples:Int, outputPath:String, samplingRate:Int=48000, bufferSize:Int=1024) {
-		super(samplingRate, bufferSize);
+	public function new(totalSamples:Int, outputPath:String, deviceSampleRate:Int=48000, bufferSize:Int=1024) {
+		super(deviceSampleRate, bufferSize);
 		this.totalSamples = totalSamples;
 		this.outputPath = outputPath;
 	}
 	#else
-	public function new(totalSamples:Int, samplingRate:Int=48000, bufferSize:Int=1024) {
-		super(samplingRate, bufferSize);
+	public function new(totalSamples:Int, deviceSampleRate:Int=48000, bufferSize:Int=1024) {
+		super(deviceSampleRate, bufferSize);
 		this.totalSamples = totalSamples;
 	}
 	#end
@@ -55,8 +55,8 @@ class AudioDriver extends AudioDriverBase {
 			header: {
 				format: WF_PCM,
 				channels: channels,
-				samplingRate: samplingRate,
-				byteRate: samplingRate * bytesPerFrame,
+				samplingRate: deviceSampleRate,
+				byteRate: deviceSampleRate * bytesPerFrame,
 				blockAlign: bytesPerFrame,
 				bitsPerSample: 32
 			},

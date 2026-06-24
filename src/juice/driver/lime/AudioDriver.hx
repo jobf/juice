@@ -1,13 +1,10 @@
 package juice.driver.lime;
 
-import haxe.io.Float32Array;
 import haxe.Timer;
 import lime.media.openal.AL;
 import lime.media.openal.ALBuffer;
 import lime.media.openal.ALC;
 import lime.media.openal.ALSource;
-import lime.utils.ArrayBuffer;
-import lime.utils.ArrayBufferView;
 
 import juice.API;
 
@@ -27,8 +24,8 @@ class AudioDriver extends AudioDriverBase {
 
 	function new(bufferSize:Int=1024){
 		var device = ALC.getContextsDevice(ALC.getCurrentContext());
-		var samplingRate = ALC.getIntegerv(device, ALC.FREQUENCY, 1)[0];
-		super(samplingRate, bufferSize);
+		var deviceSampleRate = ALC.getIntegerv(device, ALC.FREQUENCY, 1)[0];
+		super(deviceSampleRate, bufferSize);
 	}
 
 	function init():Void {
@@ -51,12 +48,12 @@ class AudioDriver extends AudioDriverBase {
 		var frameCount = bufferSize * numChannels;
 		alBufferSize = frameCount * 4;
 		interleavedView = lime.utils.Float32Array.fromBytes(buffer.view.buffer);
-		var time = 1000 * bufferSize / samplingRate * 0.8;
+		var time = 1000 * bufferSize / deviceSampleRate * 0.8;
 		timer = new Timer(time);
 
 		static var AL_FORMAT_STEREO_FLOAT32 = 0x10011;
 		for (buffer in buffers) {
-			AL.bufferData(buffer, AL_FORMAT_STEREO_FLOAT32, interleavedView, alBufferSize, samplingRate);
+			AL.bufferData(buffer, AL_FORMAT_STEREO_FLOAT32, interleavedView, alBufferSize, deviceSampleRate);
 			AL.sourceQueueBuffer(alSource, buffer);
 		}
 
@@ -72,7 +69,7 @@ class AudioDriver extends AudioDriverBase {
 					if (isInitialized) {
 						renderBuffer();
 					}
-					AL.bufferData(buffer, AL_FORMAT_STEREO_FLOAT32, interleavedView, alBufferSize, samplingRate);
+					AL.bufferData(buffer, AL_FORMAT_STEREO_FLOAT32, interleavedView, alBufferSize, deviceSampleRate);
 					AL.sourceQueueBuffer(alSource, buffer);
 					samplesProcessed += bufferSize;
 				}

@@ -10,8 +10,8 @@ import juice.API;
 */
 @:publicFields
 class AudioDriverLegacy extends AudioDriverBase {
-	private var audioContext:AudioContext;
-	private var scriptProcessor:ScriptProcessorNode;
+	private final audioContext:AudioContext;
+	private final scriptProcessor:ScriptProcessorNode;
 	private var onaudioprocess:AudioProcessingEvent->Void;
 
 	function new(bufferSize:Int=1024){

@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<project>
+
+	<meta title="juice demo" package="juice" version="0.1.0" company="ob" />
+
+	<window width="800" height="600" fps="61" allowHighDPI="false" vsync="true" />
+	<window if="html5||android" width="0" height="0" />
+	
+	<app main="Main" path="bin" file="Main"/>
+
+	<haxelib name="lime" />	
+	<haxelib name="format" />
+
+	<!-- https://github.com/maitag/peote-view -->
+	<haxelib name="peote-view" />
+
+	<!-- https://github.com/jobf/juice -->
+	<haxelib name="juice" />
+
+	<source path="keyjazz" />
+
+	<haxeflag name="-dce" value="full" />
+	<define name="peoteview_fps" />
+
+</project>
