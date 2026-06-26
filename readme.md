@@ -41,6 +41,10 @@ lime test hl
 lime test html5
 ```
 
+## demo
+
+See demo folder or try the build deployed here -> https://jobf.github.io/juice/
+
 # todo
 
 - proper readme
